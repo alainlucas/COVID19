@@ -1,0 +1,132 @@
+---
+title: "COVID 19"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(dplyr)
+library(ggplot2)
+library(plotly)
+
+
+# Chargement des données
+
+URL = "https://opendata.ecdc.europa.eu/covid19/casedistribution/csv"
+dataset = read.table(URL,header=TRUE,sep=",")
+
+# Préparation des données
+
+dataset %>% select(dateRep,cases,deaths,countriesAndTerritories,popData2018) %>% 
+  mutate(date=as.Date(dateRep,format="%d/%m/%Y")) %>% mutate(dateRep=NULL) %>% 
+  rename(country = countriesAndTerritories,pop2018 = popData2018) -> covid
+
+```
+
+International {data-orientation=rows data-icon="fa-bar-chart"}
+=======================================================================
+
+
+Row 1 {data-width=250}
+-----------------------------------------------------------------------
+
+### Chart A : Date
+
+```{r}
+
+covid %>% select(date) %>% summarize(MAJ = max(date))-> MAJ 
+
+valueBox(value = format(MAJ,"%d-%m-%Y"),
+         caption = "Date de dernière mise à jour",
+         color="#5DADE2",
+         icon = "ion-android-calendar")
+
+```
+
+### Chart B : Nombre total de morts dans le monde
+
+```{r}
+
+covid %>% summarize(Total = sum(deaths)) -> Totaldeaths
+
+valueBox(value = prettyNum(Totaldeaths,big.mark=" "),
+         caption = "Nombre total de morts dans le monde",
+         color="#B03A2E",
+         icon = "ion-android-globe")
+
+```
+
+### Chart C : Nombre total de morts en France
+
+```{r}
+
+covid %>% filter(country == "France") %>% summarize(Total = sum(deaths)) -> TotaldeathsFrance
+
+valueBox(value = prettyNum(TotaldeathsFrance,big.mark=" "),
+         caption = "Nombre total de morts en France",
+         color="#76448A",
+         icon = "ion-alert-circled")
+
+```
+
+Row 2 {data-width=750 .tabset}
+-----------------------------------------------------------------------
+
+### Evolution du nombre de décès
+
+```{r, fig.width=12}
+
+covid %>% filter(country %in% c("France","Italy","Germany","Spain","Belgium",
+                  "Switzerland","United_Kingdom","United_States_of_America")) %>%
+  filter(date >= as.Date("2020-03-29")) %>% 
+  group_by(country) %>% arrange(date) %>% mutate(Cum_deaths = cumsum(deaths)) %>% 
+  ggplot(aes(x=date,y=Cum_deaths,color=country))+
+  geom_line(size=1.5)+
+  theme_bw()+
+  labs(title="Nombre cumulé de décès",x="Date",y="Effectif")+
+  scale_x_date(date_labels = "%d %B",date_breaks = "5 days")+
+  scale_color_discrete(name="Pays")+
+  theme(legend.position="right")
+
+```
+
+### Nombre de morts par pays
+
+```{r,fig.width=12}
+
+covid %>% filter(country %in% c("France","Italy","Germany","Spain","Belgium",
+                                "Switzerland","United_Kingdom","United_States_of_America")) %>%
+  group_by(country) %>% summarize(total_deaths = sum(deaths)) %>%  
+  ggplot(aes(x=reorder(country,-total_deaths),y=total_deaths,fill=country))+
+  geom_bar(stat="identity",col="black")+
+  theme_bw()+
+  geom_text(aes(y=total_deaths,label=total_deaths),vjust=-0.3)+
+  labs(title="Nombre de décès",x="",y="Effectifs")+
+  scale_x_discrete(guide = guide_axis(n.dodge=2))+
+  theme(legend.position="none")
+
+```
+
+### Nombre de morts pour 10 000 hab.
+
+```{r,fig.width=12}
+covid %>% filter(country %in% c("France","Italy","Germany","Spain","Belgium",
+                "Switzerland","United_Kingdom","United_States_of_America")) %>%
+  group_by(country) %>% summarize(Total_deaths = sum(deaths),pop2018 = first(pop2018)) %>% 
+  mutate(taux = (Total_deaths /pop2018)*10000) %>% 
+  ggplot(aes(x=reorder(country,-taux),y=taux,fill=country))+
+  geom_bar(stat="identity",col="black")+
+  theme_bw()+
+  geom_text(aes(label=round(taux,2)),vjust=-0.3)+
+  labs(title="Taux de mortalité par COVID19 pour 10 000 habitants",x="",y="Taux")+
+  scale_x_discrete(guide = guide_axis(n.dodge=2))+
+  theme(legend.position = "none")
+
+```
+
+
+
+

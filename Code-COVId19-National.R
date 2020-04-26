@@ -87,6 +87,11 @@ dataset %>% filter(sexe=="Total") %>% group_by(jour) %>%
   geom_text(aes(x=jour,y=dc_jour,label=paste(dc_jour)),vjust=-0.3)
 
 
+
+
+
+
+
 ###################################################################################################
 # Analyse nombre de décès par jour en Normandie
 
